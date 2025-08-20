@@ -5,7 +5,7 @@
 
 [](https://hemanthreddykunduru.github.io/Emailo/badge/Googleides real-time analytics, campaign insights, and comprehensive engagement metrics through an elegant dashboard interface.**
 
-[🚀 Live Demo](https://hemanthreddykunduru.github.io/EmailTracking-Dashboard/) -  [📖 Documentation](#documentation) -  [🛠️ Installation](#installation) -  [💼 Enterprise](#enterprise-features)
+[🚀 Live Demo](https://hemanthreddykunduru.github.io/EmailTracking-Dashboard/index.html) -  [📖 Documentation](#documentation) -  [🛠️ Installation](#installation) -  [💼 Enterprise](#enterprise-features)
 
 
 
@@ -422,7 +422,7 @@ We welcome contributions that enhance the platform's capabilities:
 ### **Hemanth Reddy Kunduru**
 *Full-Stack Developer & Email Marketing Enthusiast*
 
-[](https://github.com/hemanthreddykunls that help businesses understand their customers better and make data-driven decisions.*
+[](https://hemanthreddykunduru.github.io/EmailTracking-Dashboard/index.html) that help businesses understand their customers better and make data-driven decisions.*
 
 
 
@@ -444,7 +444,7 @@ We welcome contributions that enhance the platform's capabilities:
 
 If this project helped you track your emails better or provided valuable insights for your business, please consider:
 
-[![Star this repo](https://img.shields.io/github/stars/hemanthreddykunduru/EmailTrackings/e-offsite/?url=https://github.com/hemanthred.shields.io/badge/🚀_s & Collaboration**
+[![Star this repo]**(https://github.com/hemanthreddykunduru/EmailTracking-Dashboard)**
 
 Have questions? Suggestions? Looking for custom email tracking solutions?
 
@@ -457,16 +457,3 @@ Have questions? Suggestions? Looking for custom email tracking solutions?
 *Made with ❤️ and lots of ☕ by [Hemanth Reddy Kunduru](https://github.com/hemanthreddykunduru)*
 
 *© 2025 Gmail Tracker System. All rights reserved.*
-
-
-
-[1] https://www.moengage.com/blog/email-marketing-dashboard/
-[2] https://hevodata.com/learn/10-best-marketing-dashboard/
-[3] https://www.eleken.co/blog-posts/dashboard-design-examples-that-catch-the-eye
-[4] https://www.justinmind.com/ui-design/dashboard-design-best-practices-ux
-[5] https://www.figma.com/templates/dashboard-designs/
-[6] https://www.geckoboard.com/dashboard-examples/
-[7] https://dribbble.com/tags/email-tracking
-[8] https://dribbble.com/tags/email-dashboard
-[9] https://www.uidux.com/email-design-templates-order-tracking-and-delivery-email-template-for-figma-and-adobe-xd
-[10] https://www.emailmeter.com/blog/best-email-analytics-dashboards
