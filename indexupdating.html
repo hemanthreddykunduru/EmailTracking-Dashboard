@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Analytics Dashboard</title>
+    <!-- Chart.js and required plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        .dashboard {
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 20px 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .refresh-btn, .export-btn {
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .refresh-btn {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+        }
+        .export-btn {
+            background: linear-gradient(45deg, #10b981, #06b6d4);
+        }
+        .refresh-btn:hover, .export-btn:hover {
+            transform: translateY(-2px);
+        }
+        .refresh-btn:hover {
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        .export-btn:hover {
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        .developer-credit {
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: right;
+        }
+        .last-updated {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .control-group {
+            position: relative;
+            z-index: 10;
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        select, input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .recipient-filter-container {
+            position: relative;
+        }
+        .recipient-search {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        .recipient-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 999999;
+            display: none;
+        }
+        .recipient-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.2);
+            transition: background-color 0.2s;
+        }
+        .recipient-option:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+        .recipient-option.all-recipients {
+            font-weight: 600;
+            color: #3b82f6;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Interactive Timeline - Fixed Positioning to Prevent Shaking */
+        .interactive-timeline {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            position: relative;
+            min-height: 500px;
+        }
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+            height: 60px;
+        }
+        .timeline-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .timeline-info {
+            font-size: 12px;
+            color: #94a3b8;
+            background: rgba(15, 23, 42, 0.4);
+            padding: 8px 12px;
+            border-radius: 8px;
+            min-width: 300px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .timeline-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            height: 40px;
+            align-items: center;
+        }
+        .timeline-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            background: rgba(30, 41, 59, 0.6);
+            color: #e2e8f0;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            font-size: 12px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+        }
+        .timeline-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+            transform: none;
+        }
+        .timeline-btn.active {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        .timeline-reset {
+            background: linear-gradient(45deg, #ef4444, #f59e0b) !important;
+            border-color: #ef4444 !important;
+        }
+        .timeline-chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            background: rgba(15, 23, 42, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            overflow: hidden;
+        }
+        
+        /* Custom Tooltip Styling - Fixed Position */
+        .custom-tooltip {
+            position: fixed;
+            background: rgba(15, 23, 42, 0.95);
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #3b82f6;
+            font-size: 12px;
+            line-height: 1.4;
+            max-width: 300px;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .custom-tooltip.show {
+            opacity: 1;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        .stat-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+        }
+        .stat-title {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 8px;
+        }
+        .stat-change {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stat-change.positive {
+            color: #10b981;
+        }
+        .stat-change.negative {
+            color: #ef4444;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            position: relative;
+        }
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #f8fafc;
+        }
+        .data-table {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .table-header {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+        }
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f8fafc;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .table-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.4);
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.6);
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.2);
+        }
+        th {
+            background: rgba(15, 23, 42, 0.4);
+            font-weight: 600;
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            color: #e2e8f0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .status-opened {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .status-not-opened {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .status-sent {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(59, 130, 246, 0.2);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+        }
+        .chat-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .chat-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(59, 130, 246, 0.6);
+        }
+        .chat-window {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.3);
+            border-radius: 16px;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+        }
+        .chat-header {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            padding: 15px 20px;
+            color: white;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.4);
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.6);
+            border-radius: 3px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .message.user {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .message.bot {
+            background: rgba(30, 41, 59, 0.6);
+            color: #e2e8f0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .message.typing {
+            background: rgba(30, 41, 59, 0.6);
+            color: #94a3b8;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            font-style: italic;
+        }
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid rgba(51, 65, 85, 0.3);
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        .chat-send {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .dashboard {
+                padding: 10px;
+            }
+            .chat-window {
+                width: calc(100vw - 40px);
+                height: 400px;
+                right: 20px;
+            }
+            .timeline-controls {
+                gap: 5px;
+                height: auto;
+                min-height: 40px;
+            }
+            .timeline-btn {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+            .timeline-header {
+                flex-direction: column;
+                align-items: stretch;
+                height: auto;
+                min-height: 80px;
+            }
+            .timeline-info {
+                text-align: center;
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Tooltip Element -->
+    <div id="customTooltip" class="custom-tooltip"></div>
+    
+    <div class="dashboard">
+        <div class="header">
+            <div class="logo">📧 Email Analytics</div>
+            <div class="header-right">
+                <button class="refresh-btn" onclick="manualRefresh()">🔄 Refresh</button>
+                <button class="export-btn" onclick="exportToPDF()">📄 Export PDF</button>
+                <div class="developer-credit">
+                    <div>Developed by</div>
+                    <div><strong>Hemanth Reddy</strong></div>
+                    <div class="last-updated" id="lastUpdated">Last updated: Never</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Company Filter</label>
+                <select id="companyFilter">
+                    <option value="all">All Companies</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Campaign Filter</label>
+                <select id="campaignFilter">
+                    <option value="all">All Campaigns</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Recipient Filter</label>
+                <div class="recipient-filter-container">
+                    <input type="text" 
+                           id="recipientSearch" 
+                           class="recipient-search" 
+                           placeholder="Search recipients..."
+                           autocomplete="off">
+                    <div id="recipientDropdown" class="recipient-dropdown"></div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Date From</label>
+                <input type="datetime-local" id="dateFrom">
+            </div>
+            <div class="control-group">
+                <label>Date To</label>
+                <input type="datetime-local" id="dateTo">
+            </div>
+            <div class="control-group">
+                <label>Status Filter</label>
+                <select id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="opened">Opened</option>
+                    <option value="not-opened">Not Opened</option>
+                    <option value="sent">All Sent</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Total Emails</div>
+                <div class="stat-value" id="totalEmails">0</div>
+                <div class="stat-change positive" id="totalChange">+0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Open Rate</div>
+                <div class="stat-value" id="openRate">0%</div>
+                <div class="stat-change positive" id="openRateChange">+0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Total Opens</div>
+                <div class="stat-value" id="totalOpens">0</div>
+                <div class="stat-change positive" id="opensChange">+0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Avg Response Time</div>
+                <div class="stat-value" id="avgResponseTime">N/A</div>
+                <div class="stat-change" id="responseTimeChange">-</div>
+            </div>
+            <div class="stat-card" id="recipientStatsCard" style="display: none;">
+                <div class="stat-title">Selected Recipient</div>
+                <div class="stat-value" id="recipientName">-</div>
+                <div class="stat-change" id="recipientCompany">-</div>
+            </div>
+        </div>
+        
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">📈 Email Activity Timeline</div>
+                <canvas id="timelineChart" width="400" height="200"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">🏢 Company Performance</div>
+                <canvas id="companyChart" width="300" height="300"></canvas>
+            </div>
+        </div>
+        
+        <div class="interactive-timeline">
+            <div class="timeline-header">
+                <div class="timeline-title">
+                    🕒 Interactive Email Timeline
+                    <span style="font-size: 12px; color: #94a3b8; font-weight: normal;">
+                        (Blue = Sent, Green = Opened, Red = Not Opened)
+                    </span>
+                </div>
+                <div class="timeline-info" id="timelineInfo">
+                    Hover over dots for detailed email information
+                </div>
+            </div>
+            <div class="timeline-controls">
+                <button class="timeline-btn active" data-range="all">All Time</button>
+                <button class="timeline-btn" data-range="1y">1 Year</button>
+                <button class="timeline-btn" data-range="1m">1 Month</button>
+                <button class="timeline-btn" data-range="1w">1 Week</button>
+                <button class="timeline-btn" data-range="1d">1 Day</button>
+                <button class="timeline-btn" data-range="12h">12 Hours</button>
+                <button class="timeline-btn timeline-reset" onclick="resetTimelineZoom()">Reset Zoom</button>
+            </div>
+            <div class="timeline-chart-container">
+                <canvas id="interactiveTimeline"></canvas>
+            </div>
+        </div>
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">📊 Campaign Analytics</div>
+                <canvas id="campaignChart" width="400" height="200"></canvas>
+            </div>
+            <div class="chart-container" id="recipientTimelineContainer" style="display: none;">
+                <div class="chart-title">👤 Recipient Analysis</div>
+                <canvas id="recipientTimelineChart" width="300" height="300"></canvas>
+            </div>
+            <div class="chart-container" id="hourlyContainer">
+                <div class="chart-title">⏱️ Hourly Activity</div>
+                <canvas id="hourlyChart" width="300" height="300"></canvas>
+            </div>
+        </div>
+
+        <div class="data-table">
+            <div class="table-header">
+                <div class="table-title">📧 Recent Email Activity</div>
+            </div>
+            <div class="table-container">
+                <table id="emailTable">
+                    <thead>
+                        <tr>
+                            <th>Sent At</th>
+                            <th>Recipient</th>
+                            <th>Company</th>
+                            <th>Campaign</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Opened At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emailTableBody">
+                        <tr>
+                            <td colspan="7" class="loading">
+                                <div class="spinner"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-widget">
+        <button class="chat-button" id="chatToggle">
+            <img src="https://cdn-icons-gif.flaticon.com/17569/17569423.gif" alt="Open AI Chat" style="width:50px; height:50px;border-radius:50%" />
+        </button>
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <span><img src="https://cdn-icons-gif.flaticon.com/17569/17569423.gif" alt="Open AI Chat" style="width:50px; height:50px;border-radius:50%" />Analytics Assistant</span>
+                <button class="chat-close" id="chatClose">✕</button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    Hi! I'm your analytics assistant. Ask me anything about your email data! 📊
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Don't shy ask here 🤭   ">
+                <button class="chat-send" id="chatSend">Send</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+const SHEET_ID = '1seX51DpJTvMmYaVhZ2UckHrrB5UO4Pw_k63cRjUEHzY';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+let allData = [];
+let filteredData = [];
+let charts = {};
+let selectedRecipient = 'all';
+let lastUpdated = null;
+let currentTimeRange = 'all';
+let customTooltip;
+
+// Register Chart.js plugins
+Chart.register(ChartZoom);
+
+// Initialize custom tooltip
+document.addEventListener('DOMContentLoaded', function() {
+    customTooltip = document.getElementById('customTooltip');
+});
+
+async function fetchData() {
+    try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(SHEET_URL)}`;
+        const response = await fetch(proxyUrl);
+        const csvText = await response.text();
+        const lines = csvText.split('\n').filter(line => line.trim());
+        
+        if (lines.length <= 1) {
+            throw new Error('No data found in the spreadsheet');
+        }
+
+        allData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.trim()) continue;
+            
+            const values = parseCSVLine(line);
+            if (values.length >= 10) {
+                const item = {
+                    sentAt: parseDate(values[0]),
+                    to: values[1] || '',
+                    receiverName: values[2] || '',
+                    company: values[3] || 'Unknown',
+                    campaign: values[4] || 'Unknown',
+                    subject: values[5] || '',
+                    threadId: values[6] || '',
+                    permalink: values[7] || '',
+                    trackingNumber: values[8] || '',
+                    opened: values[9] && (values[9].toLowerCase() === 'true' || values[9] === '1'),
+                    openedAt: values[10] ? parseDate(values[10]) : null
+                };
+                
+                if (item.sentAt && !isNaN(item.sentAt.getTime())) {
+                    allData.push(item);
+                }
+            }
+        }
+
+        lastUpdated = new Date();
+        document.getElementById('lastUpdated').textContent = `Last updated: ${lastUpdated.toLocaleString()}`;
+        
+        updateFilters();
+        applyFilters();
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        document.getElementById('emailTableBody').innerHTML = 
+            `<tr><td colspan="7" class="error">Failed to load data: ${error.message}</td></tr>`;
+    }
+}
+
+function parseCSVLine(line) {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    values.push(current.trim());
+    return values;
+}
+
+function parseDate(dateStr) {
+    if (!dateStr) return null;
+    dateStr = dateStr.replace(/"/g, '').trim();
+    
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+        const formats = [
+            /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/,
+            /(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2}):(\d{2})/,
+        ];
+        
+        for (const format of formats) {
+            const match = dateStr.match(format);
+            if (match) {
+                if (format.source.startsWith('(\\d{1,2})')) {
+                    return new Date(match[3], match[1] - 1, match[2], match[4], match[5], match[6]);
+                } else {
+                    return new Date(match[1], match[2] - 1, match[3], match[4], match[5], match[6]);
+                }
+            }
+        }
+        return null;
+    }
+    return date;
+}
+
+function updateFilters() {
+    const companies = [...new Set(allData.map(item => item.company).filter(Boolean))].sort();
+    const campaigns = [...new Set(allData.map(item => item.campaign).filter(Boolean))].sort();
+    
+    const companySelect = document.getElementById('companyFilter');
+    const campaignSelect = document.getElementById('campaignFilter');
+    
+    companySelect.innerHTML = '<option value="all">All Companies</option>';
+    campaignSelect.innerHTML = '<option value="all">All Campaigns</option>';
+    
+    companies.forEach(company => {
+        companySelect.innerHTML += `<option value="${company}">${company}</option>`;
+    });
+    
+    campaigns.forEach(campaign => {
+        campaignSelect.innerHTML += `<option value="${campaign}">${campaign}</option>`;
+    });
+}
+
+function setupRecipientFilter() {
+    const searchInput = document.getElementById('recipientSearch');
+    const dropdown = document.getElementById('recipientDropdown');
+    
+    searchInput.addEventListener('focus', () => {
+        updateRecipientDropdown('');
+        dropdown.style.display = 'block';
+    });
+    
+    searchInput.addEventListener('input', (e) => {
+        updateRecipientDropdown(e.target.value);
+    });
+    
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.recipient-filter-container')) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+function updateRecipientDropdown(searchTerm) {
+    const dropdown = document.getElementById('recipientDropdown');
+    const recipients = [...new Set(allData.map(item => ({
+        name: item.receiverName,
+        email: item.to,
+        company: item.company,
+        display: `${item.receiverName} (${item.to})`
+    })))].sort((a, b) => a.name.localeCompare(b.name));
+    
+    const filteredRecipients = recipients.filter(recipient => 
+        recipient.display.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    dropdown.innerHTML = '';
+    
+    const allOption = document.createElement('div');
+    allOption.className = 'recipient-option all-recipients';
+    allOption.textContent = 'All Recipients';
+    allOption.onclick = () => selectRecipient('all', 'All Recipients');
+    dropdown.appendChild(allOption);
+    
+    filteredRecipients.forEach(recipient => {
+        const option = document.createElement('div');
+        option.className = 'recipient-option';
+        option.textContent = recipient.display;
+        option.onclick = () => selectRecipient(recipient.display, recipient.display);
+        dropdown.appendChild(option);
+    });
+}
+
+function selectRecipient(value, display) {
+    selectedRecipient = value;
+    document.getElementById('recipientSearch').value = display;
+    document.getElementById('recipientDropdown').style.display = 'none';
+    applyFilters();
+}
+
+function applyFilters() {
+    const companyFilter = document.getElementById('companyFilter').value;
+    const campaignFilter = document.getElementById('campaignFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    
+    filteredData = allData.filter(item => {
+        if (companyFilter !== 'all' && item.company !== companyFilter) return false;
+        if (campaignFilter !== 'all' && item.campaign !== campaignFilter) return false;
+        if (selectedRecipient !== 'all') {
+            const itemRecipient = `${item.receiverName} (${item.to})`;
+            if (itemRecipient !== selectedRecipient) return false;
+        }
+        if (statusFilter === 'opened' && !item.opened) return false;
+        if (statusFilter === 'not-opened' && item.opened) return false;
+        if (statusFilter === 'sent' && statusFilter !== 'all') return true;
+        if (dateFrom && item.sentAt < new Date(dateFrom)) return false;
+        if (dateTo && item.sentAt > new Date(dateTo)) return false;
+        return true;
+    });
+    
+    updateStats();
+    updateCharts();
+    updateTable();
+    updateRecipientView();
+}
+
+function updateStats() {
+    const totalEmails = filteredData.length;
+    const openedEmails = filteredData.filter(item => item.opened).length;
+    const openRate = totalEmails > 0 ? (openedEmails / totalEmails * 100).toFixed(1) : 0;
+
+    const responseTimes = filteredData
+        .filter(item => {
+            return item.opened && 
+                   item.openedAt && 
+                   item.openedAt instanceof Date && 
+                   !isNaN(item.openedAt.getTime()) &&
+                   item.openedAt > item.sentAt;
+        })
+        .map(item => (item.openedAt - item.sentAt) / 1000);
+
+    let avgResponseTime = 0;
+    let responseTimeDisplay = 'N/A';
+    if (responseTimes.length > 0) {
+        avgResponseTime = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
+        responseTimeDisplay = formatTime(avgResponseTime);
+    }
+
+    document.getElementById('totalEmails').textContent = totalEmails.toLocaleString();
+    document.getElementById('openRate').textContent = openRate + '%';
+    document.getElementById('totalOpens').textContent = openedEmails.toLocaleString();
+    document.getElementById('avgResponseTime').textContent = responseTimeDisplay;
+
+    const changeElement = document.getElementById('responseTimeChange');
+    if (responseTimes.length === 0) {
+        changeElement.textContent = selectedRecipient === 'all' ? '-' : 'No opens yet';
+        changeElement.className = 'stat-change';
+    } else {
+        changeElement.textContent = `${responseTimes.length} responses`;
+        changeElement.className = 'stat-change positive';
+    }
+}
+
+function formatTime(seconds) {
+    if (seconds < 60) return seconds + 's';
+    if (seconds < 3600) return Math.round(seconds / 60) + 'm';
+    if (seconds < 86400) return Math.round(seconds / 3600) + 'h';
+    return Math.round(seconds / 86400) + 'd';
+}
+
+// Custom tooltip functions to prevent shaking
+function showCustomTooltip(event, item, type) {
+    if (!customTooltip) return;
+    
+    let content = `<strong>${item.receiverName}</strong> (${item.company})<br>`;
+    content += `📧 ${item.to}<br>`;
+    content += `📋 ${item.campaign}<br>`;
+    content += `📝 ${item.subject.substring(0, 40)}${item.subject.length > 40 ? '...' : ''}<br>`;
+    content += `📅 Sent: ${item.sentAt.toLocaleString()}<br>`;
+    
+    if (type === 'opened' && item.openedAt) {
+        content += `📖 Opened: ${item.openedAt.toLocaleString()}<br>`;
+        const responseTime = (item.openedAt - item.sentAt) / 1000;
+        content += `⏱️ Response: ${formatTime(responseTime)}`;
+    } else if (item.opened && item.openedAt) {
+        content += `📖 Opened: ${item.openedAt.toLocaleString()}<br>`;
+        const responseTime = (item.openedAt - item.sentAt) / 1000;
+        content += `⏱️ Response: ${formatTime(responseTime)}`;
+    } else {
+        content += `❌ Not opened yet`;
+    }
+    
+    customTooltip.innerHTML = content;
+    
+    // Position tooltip safely
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+    const tooltipWidth = 300;
+    const tooltipHeight = 120;
+    
+    let left = mouseX + 10;
+    let top = mouseY - tooltipHeight - 10;
+    
+    // Keep tooltip within viewport
+    if (left + tooltipWidth > window.innerWidth) {
+        left = mouseX - tooltipWidth - 10;
+    }
+    if (top < 0) {
+        top = mouseY + 10;
+    }
+    
+    customTooltip.style.left = left + 'px';
+    customTooltip.style.top = top + 'px';
+    customTooltip.classList.add('show');
+}
+
+function hideCustomTooltip() {
+    if (customTooltip) {
+        customTooltip.classList.remove('show');
+    }
+}
+
+// Interactive Timeline Functions - Enhanced with Not-Opened
+function updateInteractiveTimeline() {
+    const ctx = document.getElementById('interactiveTimeline').getContext('2d');
+    
+    let timeFilteredData = getTimeFilteredData(filteredData, currentTimeRange);
+    
+    const sentPoints = [];
+    const openedPoints = [];
+    const notOpenedPoints = [];
+    
+    timeFilteredData.forEach((item, index) => {
+        sentPoints.push({
+            x: item.sentAt.getTime(),
+            y: 1,
+            index: index,
+            item: item,
+            type: 'sent'
+        });
+        
+        if (item.opened && item.openedAt) {
+            openedPoints.push({
+                x: item.openedAt.getTime(),
+                y: 2,
+                index: index,
+                item: item,
+                type: 'opened'
+            });
+        } else if (!item.opened) {
+            // Show not opened emails at a slightly different Y position for better visibility
+            notOpenedPoints.push({
+                x: item.sentAt.getTime(),
+                y: 1.5,
+                index: index,
+                item: item,
+                type: 'not-opened'
+            });
+        }
+    });
+
+    if (charts.interactiveTimeline) {
+        charts.interactiveTimeline.destroy();
+    }
+
+    const canvas = document.getElementById('interactiveTimeline');
+    
+    charts.interactiveTimeline = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Sent Emails',
+                data: sentPoints,
+                backgroundColor: '#3b82f6',
+                borderColor: '#1d4ed8',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBorderWidth: 1,
+                pointBorderColor: '#ffffff'
+            }, {
+                label: 'Opened Emails',
+                data: openedPoints,
+                backgroundColor: '#10b981',
+                borderColor: '#047857',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBorderWidth: 1,
+                pointBorderColor: '#ffffff'
+            }, {
+                label: 'Not Opened Emails',
+                data: notOpenedPoints,
+                backgroundColor: '#ef4444',
+                borderColor: '#dc2626',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBorderWidth: 1,
+                pointBorderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'point'
+            },
+            plugins: {
+                legend: {
+                    labels: { 
+                        color: '#e2e8f0',
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    enabled: false
+                },
+                zoom: {
+                    limits: {
+                        x: {min: 'original', max: 'original'},
+                        y: {min: 0.5, max: 2.5}
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                        modifierKey: null
+                    },
+                    zoom: {
+                        wheel: {
+                            enabled: true,
+                            speed: 0.1
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        mode: 'x'
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: getTimeUnit(currentTimeRange),
+                        displayFormats: {
+                            hour: 'MMM dd HH:mm',
+                            day: 'MMM dd',
+                            week: 'MMM dd',
+                            month: 'MMM yyyy',
+                            year: 'yyyy'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Date & Time',
+                        color: '#94a3b8'
+                    },
+                    ticks: { 
+                        color: '#94a3b8',
+                        maxTicksLimit: 10
+                    },
+                    grid: { 
+                        color: 'rgba(51, 65, 85, 0.3)' 
+                    }
+                },
+                y: {
+                    min: 0.5,
+                    max: 2.5,
+                    ticks: {
+                        stepSize: 0.5,
+                        callback: function(value) {
+                            if (value === 1) return '📤 Sent';
+                            if (value === 1.5) return '❌ Not Opened';
+                            if (value === 2) return '📖 Opened';
+                            return '';
+                        },
+                        color: '#94a3b8'
+                    },
+                    grid: { 
+                        color: 'rgba(51, 65, 85, 0.3)' 
+                    },
+                    title: {
+                        display: true,
+                        text: 'Email Status',
+                        color: '#94a3b8'
+                    }
+                }
+            },
+            onHover: function(event, elements) {
+                if (elements.length > 0) {
+                    const point = elements[0];
+                    const item = charts.interactiveTimeline.data.datasets[point.datasetIndex].data[point.index].item;
+                    const type = ['sent', 'opened', 'not-opened'][point.datasetIndex];
+                    
+                    showCustomTooltip(event.native, item, type);
+                    updateTimelineInfoStable(item, type);
+                } else {
+                    hideCustomTooltip();
+                    updateTimelineInfoStable();
+                }
+            }
+        }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        hideCustomTooltip();
+        updateTimelineInfoStable();
+    });
+}
+
+function getTimeFilteredData(data, range) {
+    if (range === 'all') return data;
+    
+    const now = new Date();
+    let cutoffDate;
+    
+    switch (range) {
+        case '1y':
+            cutoffDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            break;
+        case '1m':
+            cutoffDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            break;
+        case '1w':
+            cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+        case '1d':
+            cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+        case '12h':
+            cutoffDate = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+            break;
+        default:
+            return data;
+    }
+    
+    return data.filter(item => item.sentAt >= cutoffDate);
+}
+
+function getTimeUnit(range) {
+    switch (range) {
+        case '12h':
+        case '1d':
+            return 'hour';
+        case '1w':
+            return 'day';
+        case '1m':
+            return 'week';
+        case '1y':
+            return 'month';
+        default:
+            return 'day';
+    }
+}
+
+function updateTimelineInfoStable(hoveredItem = null, eventType = null) {
+    const infoElement = document.getElementById('timelineInfo');
+    
+    if (hoveredItem && eventType) {
+        let action, time;
+        if (eventType === 'opened') {
+            action = 'Opened';
+            time = hoveredItem.openedAt;
+        } else if (eventType === 'not-opened') {
+            action = 'Not Opened (Sent)';
+            time = hoveredItem.sentAt;
+        } else {
+            action = 'Sent';
+            time = hoveredItem.sentAt;
+        }
+        
+        infoElement.textContent = `${action}: ${hoveredItem.receiverName} (${hoveredItem.to}) at ${hoveredItem.company} - ${time.toLocaleString()}`;
+    } else {
+        const visibleData = getTimeFilteredData(filteredData, currentTimeRange);
+        const totalSent = visibleData.length;
+        const totalOpened = visibleData.filter(item => item.opened).length;
+        const totalNotOpened = totalSent - totalOpened;
+        const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : 0;
+        
+        infoElement.textContent = `📤 ${totalSent} sent | 📖 ${totalOpened} opened | ❌ ${totalNotOpened} not opened | ${openRate}% open rate`;
+    }
+}
+
+function setupTimelineControls() {
+    const timelineButtons = document.querySelectorAll('.timeline-btn[data-range]');
+    
+    timelineButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            timelineButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            currentTimeRange = button.getAttribute('data-range');
+            updateInteractiveTimeline();
+        });
+    });
+}
+
+function resetTimelineZoom() {
+    if (charts.interactiveTimeline) {
+        charts.interactiveTimeline.resetZoom();
+        updateTimelineInfoStable();
+    }
+}
+
+function updateCharts() {
+    updateInteractiveTimeline();
+    updateTimelineChart();
+    updateCompanyChart();
+    updateCampaignChart();
+    updateHourlyChart();
+    updateRecipientTimelineChart();
+}
+
+function updateTimelineChart() {
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    const timeGroups = {};
+    
+    filteredData.forEach(item => {
+        const date = item.sentAt.toDateString();
+        if (!timeGroups[date]) {
+            timeGroups[date] = { sent: 0, opened: 0, notOpened: 0 };
+        }
+        timeGroups[date].sent++;
+        if (item.opened) {
+            timeGroups[date].opened++;
+        } else {
+            timeGroups[date].notOpened++;
+        }
+    });
+
+    const sortedDates = Object.keys(timeGroups).sort();
+    const sentData = sortedDates.map(date => timeGroups[date].sent);
+    const openedData = sortedDates.map(date => timeGroups[date].opened);
+    const notOpenedData = sortedDates.map(date => timeGroups[date].notOpened);
+
+    if (charts.timeline) charts.timeline.destroy();
+
+    charts.timeline = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
+            datasets: [{
+                label: 'Sent',
+                data: sentData,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Opened',
+                data: openedData,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Not Opened',
+                data: notOpenedData,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#e2e8f0' }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                },
+                y: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                }
+            }
+        }
+    });
+}
+
+function updateCompanyChart() {
+    const ctx = document.getElementById('companyChart').getContext('2d');
+    const companyStats = {};
+    
+    filteredData.forEach(item => {
+        if (!companyStats[item.company]) {
+            companyStats[item.company] = { sent: 0, opened: 0 };
+        }
+        companyStats[item.company].sent++;
+        if (item.opened) companyStats[item.company].opened++;
+    });
+
+    const companies = Object.keys(companyStats);
+    const totalEmails = companies.map(company => companyStats[company].sent);
+
+    if (charts.company) charts.company.destroy();
+
+    charts.company = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: companies.map(company => `${company} (${companyStats[company].sent})`),
+            datasets: [{
+                data: totalEmails,
+                backgroundColor: [
+                    '#3b82f6', '#10b981', '#f59e0b', 
+                    '#ef4444', '#8b5cf6', '#06b6d4',
+                    '#f97316', '#84cc16', '#ec4899',
+                    '#06b6d4', '#8b5cf6', '#f59e0b'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { 
+                        color: '#e2e8f0', 
+                        padding: 20,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const company = companies[context.dataIndex];
+                            const stats = companyStats[company];
+                            const openRate = ((stats.opened / stats.sent) * 100).toFixed(1);
+                            return `${company}: ${stats.sent} sent, ${stats.opened} opened (${openRate}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateCampaignChart() {
+    const ctx = document.getElementById('campaignChart').getContext('2d');
+    const campaignStats = {};
+    
+    filteredData.forEach(item => {
+        if (!campaignStats[item.campaign]) {
+            campaignStats[item.campaign] = { sent: 0, opened: 0, notOpened: 0 };
+        }
+        campaignStats[item.campaign].sent++;
+        if (item.opened) {
+            campaignStats[item.campaign].opened++;
+        } else {
+            campaignStats[item.campaign].notOpened++;
+        }
+    });
+
+    const campaigns = Object.keys(campaignStats);
+    const sentData = campaigns.map(campaign => campaignStats[campaign].sent);
+    const openedData = campaigns.map(campaign => campaignStats[campaign].opened);
+    const notOpenedData = campaigns.map(campaign => campaignStats[campaign].notOpened);
+
+    if (charts.campaign) charts.campaign.destroy();
+
+    charts.campaign = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: campaigns,
+            datasets: [{
+                label: 'Sent',
+                data: sentData,
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: '#3b82f6',
+                borderWidth: 1
+            }, {
+                label: 'Opened',
+                data: openedData,
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                borderColor: '#10b981',
+                borderWidth: 1
+            }, {
+                label: 'Not Opened',
+                data: notOpenedData,
+                backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                borderColor: '#ef4444',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#e2e8f0' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const campaign = campaigns[context.dataIndex];
+                            const stats = campaignStats[campaign];
+                            const dataset = context.dataset.label;
+                            const value = context.raw;
+                            
+                            if (dataset === 'Sent') {
+                                return `${dataset}: ${value} emails`;
+                            } else if (dataset === 'Opened') {
+                                const openRate = ((value / stats.sent) * 100).toFixed(1);
+                                return `${dataset}: ${value} emails (${openRate}%)`;
+                            } else {
+                                const notOpenRate = ((value / stats.sent) * 100).toFixed(1);
+                                return `${dataset}: ${value} emails (${notOpenRate}%)`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                },
+                y: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                }
+            }
+        }
+    });
+}
+
+function updateHourlyChart() {
+    const ctx = document.getElementById('hourlyChart').getContext('2d');
+    const hourlyStats = Array(24).fill(0).map(() => ({ sent: 0, opened: 0 }));
+    
+    filteredData.forEach(item => {
+        const hour = item.sentAt.getHours();
+        hourlyStats[hour].sent++;
+        if (item.opened) hourlyStats[hour].opened++;
+    });
+
+    const hours = Array(24).fill(0).map((_, i) => i + ':00');
+    const hourlyData = hourlyStats.map(stat => stat.sent);
+
+    if (charts.hourly) charts.hourly.destroy();
+
+    charts.hourly = new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: hours,
+            datasets: [{
+                data: hourlyData,
+                backgroundColor: hours.map((_, i) => 
+                    `hsla(${i * 15}, 70%, 60%, 0.6)`
+                ),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                r: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                }
+            }
+        }
+    });
+}
+
+function updateRecipientView() {
+    const recipientStatsCard = document.getElementById('recipientStatsCard');
+    const recipientTimelineContainer = document.getElementById('recipientTimelineContainer');
+    const hourlyContainer = document.getElementById('hourlyContainer');
+    
+    if (selectedRecipient !== 'all') {
+        recipientStatsCard.style.display = 'block';
+        recipientTimelineContainer.style.display = 'block';
+        hourlyContainer.style.display = 'none';
+        
+        const recipientData = filteredData[0];
+        if (recipientData) {
+            document.getElementById('recipientName').textContent = recipientData.receiverName || 'Unknown';
+            document.getElementById('recipientCompany').textContent = recipientData.company || 'Unknown Company';
+        }
+    } else {
+        recipientStatsCard.style.display = 'none';
+        recipientTimelineContainer.style.display = 'none';
+        hourlyContainer.style.display = 'block';
+    }
+}
+
+function updateRecipientTimelineChart() {
+    if (selectedRecipient === 'all') return;
+    
+    const ctx = document.getElementById('recipientTimelineChart').getContext('2d');
+    const campaignStats = {};
+    
+    filteredData.forEach(item => {
+        if (!campaignStats[item.campaign]) {
+            campaignStats[item.campaign] = { sent: 0, opened: 0, dates: [] };
+        }
+        campaignStats[item.campaign].sent++;
+        campaignStats[item.campaign].dates.push(item.sentAt);
+        if (item.opened) campaignStats[item.campaign].opened++;
+    });
+
+    const campaigns = Object.keys(campaignStats);
+    const sentData = campaigns.map(campaign => campaignStats[campaign].sent);
+    const openedData = campaigns.map(campaign => campaignStats[campaign].opened);
+
+    if (charts.recipientTimeline) charts.recipientTimeline.destroy();
+
+    charts.recipientTimeline = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: campaigns,
+            datasets: [{
+                label: 'Emails Sent',
+                data: sentData,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#3b82f6',
+            }, {
+                label: 'Emails Opened',
+                data: openedData,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#10b981',
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#e2e8f0' }
+                }
+            },
+            scales: {
+                r: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                    angleLines: { color: 'rgba(51, 65, 85, 0.3)' },
+                    pointLabels: { color: '#e2e8f0' }
+                }
+            }
+        }
+    });
+}
+
+function updateTable() {
+    const tbody = document.getElementById('emailTableBody');
+    const recentData = filteredData
+        .sort((a, b) => b.sentAt - a.sentAt)
+        .slice(0, 50);
+
+    tbody.innerHTML = recentData.map(item => `
+        <tr>
+            <td>${item.sentAt.toLocaleString()}</td>
+            <td>${item.receiverName}</td>
+            <td>${item.company}</td>
+            <td>${item.campaign}</td>
+            <td>${item.subject}</td>
+            <td>
+                <span class="status-badge ${item.opened ? 'status-opened' : 'status-not-opened'}">
+                    ${item.opened ? 'Opened' : 'Not Opened'}
+                </span>
+            </td>
+            <td>${item.openedAt ? item.openedAt.toLocaleString() : '-'}</td>
+        </tr>
+    `).join('');
+}
+
+function manualRefresh() {
+    document.querySelector('.refresh-btn').innerHTML = '🔄 Refreshing...';
+    fetchData().then(() => {
+        document.querySelector('.refresh-btn').innerHTML = '🔄 Refresh';
+    });
+}
+
+async function exportToPDF() {
+    document.querySelector('.export-btn').innerHTML = '📄 Generating...';
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a4');
+
+    try {
+        // Page 1: Stats and Timeline
+        pdf.setFontSize(24);
+        pdf.setTextColor(59, 130, 246);
+        pdf.text('Email Analytics Dashboard - Page 1', 20, 20);
+        
+        pdf.setTextColor(148, 163, 184);
+        pdf.setFontSize(10);
+        pdf.text('Developed by Hemanth Reddy', 20, 30);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 36);
+        if (lastUpdated) {
+            pdf.text(`Data last updated: ${lastUpdated.toLocaleString()}`, 20, 42);
+        }
+
+        // Add stats
+        pdf.setFontSize(16);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('Key Statistics', 20, 55);
+        
+        const totalEmails = filteredData.length;
+        const openedEmails = filteredData.filter(item => item.opened).length;
+        const openRate = totalEmails > 0 ? (openedEmails / totalEmails * 100).toFixed(1) : 0;
+        
+        const responseTimes = filteredData
+            .filter(item => item.opened && item.openedAt && item.openedAt > item.sentAt)
+            .map(item => (item.openedAt - item.sentAt) / 1000);
+        
+        const avgResponseTime = responseTimes.length > 0 
+            ? formatTime(Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length))
+            : 'N/A';
+
+        pdf.setFontSize(12);
+        pdf.text(`Total Emails: ${totalEmails}`, 20, 70);
+        pdf.text(`Open Rate: ${openRate}%`, 20, 80);
+        pdf.text(`Total Opens: ${openedEmails}`, 20, 90);
+        pdf.text(`Avg Response Time: ${avgResponseTime}`, 20, 100);
+
+        // Add timeline chart
+        pdf.setFontSize(14);
+        pdf.text('Email Activity Timeline', 20, 120);
+        try {
+            const timelineCanvas = document.getElementById('timelineChart');
+            const timelineImg = timelineCanvas.toDataURL('image/png', 1.0);
+            pdf.addImage(timelineImg, 'PNG', 20, 125, 250, 100);
+        } catch (error) {
+            pdf.text('Timeline chart could not be exported', 20, 140);
+        }
+
+        // Page 2: Company, Campaign, and Hourly Charts
+        pdf.addPage();
+        pdf.setFontSize(24);
+        pdf.setTextColor(59, 130, 246);
+        pdf.text('Email Analytics Dashboard - Page 2', 20, 20);
+
+        pdf.setFontSize(14);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('Company Performance', 20, 40);
+        try {
+            const companyCanvas = document.getElementById('companyChart');
+            const companyImg = companyCanvas.toDataURL('image/png', 1.0);
+            pdf.addImage(companyImg, 'PNG', 20, 45, 120, 80);
+        } catch (error) {
+            pdf.text('Company chart could not be exported', 20, 55);
+        }
+
+        pdf.text('Campaign Analytics', 160, 40);
+        try {
+            const campaignCanvas = document.getElementById('campaignChart');
+            const campaignImg = campaignCanvas.toDataURL('image/png', 1.0);
+            pdf.addImage(campaignImg, 'PNG', 160, 45, 120, 80);
+        } catch (error) {
+            pdf.text('Campaign chart could not be exported', 160, 55);
+        }
+
+        pdf.text('Hourly Activity', 20, 140);
+        try {
+            const hourlyCanvas = document.getElementById('hourlyChart');
+            const hourlyImg = hourlyCanvas.toDataURL('image/png', 1.0);
+            pdf.addImage(hourlyImg, 'PNG', 20, 145, 120, 80);
+        } catch (error) {
+            pdf.text('Hourly chart could not be exported', 20, 155);
+        }
+
+        // Page 3: Recent Email Activity Table
+        pdf.addPage();
+        pdf.setFontSize(24);
+        pdf.setTextColor(59, 130, 246);
+        pdf.text('Email Analytics Dashboard - Page 3', 20, 20);
+
+        pdf.setFontSize(14);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('Recent Email Activity', 20, 40);
+
+        // Table headers
+        const tableData = filteredData
+            .sort((a, b) => b.sentAt - a.sentAt)
+            .slice(0, 20); // Limit to 20 most recent
+
+        let yPosition = 55;
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        
+        // Headers
+        pdf.text('Sent At', 20, yPosition);
+        pdf.text('Recipient', 60, yPosition);
+        pdf.text('Company', 110, yPosition);
+        pdf.text('Campaign', 150, yPosition);
+        pdf.text('Status', 190, yPosition);
+        pdf.text('Opened At', 220, yPosition);
+
+        yPosition += 8;
+        pdf.setTextColor(0, 0, 0);
+
+        // Table rows
+        tableData.forEach((item, index) => {
+            if (yPosition > 180) { // Add new page if needed
+                pdf.addPage();
+                yPosition = 30;
+                pdf.setFontSize(10);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Sent At', 20, yPosition);
+                pdf.text('Recipient', 60, yPosition);
+                pdf.text('Company', 110, yPosition);
+                pdf.text('Campaign', 150, yPosition);
+                pdf.text('Status', 190, yPosition);
+                pdf.text('Opened At', 220, yPosition);
+                yPosition += 8;
+                pdf.setTextColor(0, 0, 0);
+            }
+
+            const sentDate = item.sentAt.toLocaleString().substring(0, 16);
+            const recipient = item.receiverName.substring(0, 15);
+            const company = item.company.substring(0, 12);
+            const campaign = item.campaign.substring(0, 12);
+            const status = item.opened ? 'Opened' : 'Not Opened';
+            const openedDate = item.openedAt ? item.openedAt.toLocaleString().substring(0, 16) : '-';
+
+            pdf.text(sentDate, 20, yPosition);
+            pdf.text(recipient, 60, yPosition);
+            pdf.text(company, 110, yPosition);
+            pdf.text(campaign, 150, yPosition);
+            
+            // Color code status
+            if (item.opened) {
+                pdf.setTextColor(16, 185, 129); // Green
+            } else {
+                pdf.setTextColor(239, 68, 68); // Red
+            }
+            pdf.text(status, 190, yPosition);
+            pdf.setTextColor(0, 0, 0); // Reset to black
+            
+            pdf.text(openedDate, 220, yPosition);
+            yPosition += 6;
+        });
+
+        pdf.save(`email-analytics-${new Date().toISOString().split('T')[0]}.pdf`);
+        
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Error generating PDF. Please try again.');
+    } finally {
+        document.querySelector('.export-btn').innerHTML = '📄 Export PDF';
+    }
+}
+
+function setupChat() {
+    const chatToggle = document.getElementById('chatToggle');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatClose = document.getElementById('chatClose');
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+    const chatMessages = document.getElementById('chatMessages');
+
+    chatToggle.addEventListener('click', () => {
+        chatWindow.style.display = chatWindow.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    chatClose.addEventListener('click', () => {
+        chatWindow.style.display = 'none';
+    });
+
+    chatSend.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    async function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        addMessage(message, 'user');
+        chatInput.value = '';
+        addMessage('Analyzing<img src="https://cdn.pixabay.com/animation/2022/07/29/03/42/03-42-05-37_512.gif" alt="Loading animation" style="width:35px; height:35px; vertical-align:middle; margin-left:8px;" />', 'typing');
+
+        try {
+            const response = await fetch('http://localhost:5000/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    message: message,
+                    data: filteredData.slice(0, 100).map(item => ({
+                        sentAt: item.sentAt.toISOString(),
+                        receiverName: item.receiverName,
+                        company: item.company,
+                        campaign: item.campaign,
+                        subject: item.subject,
+                        opened: item.opened,
+                        openedAt: item.openedAt ? item.openedAt.toISOString() : null
+                    }))
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                removeTypingMessage();
+                addMessage(data.response || 'I apologize, but I could not process your request.', 'bot');
+            } else {
+                throw new Error('Server error');
+            }
+        } catch (error) {
+            removeTypingMessage();
+            const fallbackResponse = generateFallbackResponse(message);
+            addMessage(fallbackResponse, 'bot');
+        }
+    }
+
+    function addMessage(text, type) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+        messageDiv.innerHTML = text;
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function removeTypingMessage() {
+        const typingMsg = chatMessages.querySelector('.message.typing');
+        if (typingMsg) {
+            typingMsg.remove();
+        }
+    }
+
+    function generateFallbackResponse(userMessage) {
+        const message = userMessage.toLowerCase();
+        const totalEmails = filteredData.length;
+        const openedEmails = filteredData.filter(item => item.opened).length;
+        const notOpenedEmails = totalEmails - openedEmails;
+        const openRate = totalEmails > 0 ? (openedEmails / totalEmails * 100).toFixed(1) : 0;
+
+        if (message.includes('timeline') || message.includes('interactive')) {
+            return `The Interactive Timeline shows exact send and open times! Blue dots = sent emails, Green dots = opened emails, Red dots = not opened emails. Hover for detailed recipient info! 🕒`;
+        }
+
+        if (message.includes('open rate') || message.includes('performance')) {
+            return `Your current open rate is ${openRate}% with ${openedEmails} opens out of ${totalEmails} emails sent. ${notOpenedEmails} emails remain unopened. ${openRate > 20 ? 'Great performance! 🎉' : 'Consider A/B testing your subject lines. 📈'}`;
+        }
+
+        if (message.includes('not opened') || message.includes('unopened')) {
+            return `You have ${notOpenedEmails} not opened emails out of ${totalEmails} total emails. These are shown in red on the charts. Consider follow-up strategies! ❌`;
+        }
+
+        const responses = [
+            `You have ${totalEmails} emails tracked: ${openedEmails} opened (green), ${notOpenedEmails} not opened (red). What would you like to explore? 📊`,
+            "Ask me about the timeline, campaigns, companies, or performance tips! The charts now show not-opened emails in red! 💡",
+            `Current stats: ${openRate}% open rate. The Interactive Timeline shows all email statuses with color coding! 📈`
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+}
+
+// Event Listeners
+document.getElementById('companyFilter').addEventListener('change', applyFilters);
+document.getElementById('campaignFilter').addEventListener('change', applyFilters);
+document.getElementById('statusFilter').addEventListener('change', applyFilters);
+document.getElementById('dateFrom').addEventListener('change', applyFilters);
+document.getElementById('dateTo').addEventListener('change', applyFilters);
+
+// Initialize
+setupRecipientFilter();
+setupTimelineControls();
+setupChat();
+fetchData();
+</script>
+</body>
+</html>
